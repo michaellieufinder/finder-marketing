@@ -19,9 +19,10 @@ data_frames = []
 params = {
     'date_preset': 'last_7d',
     'level': 'ad',
-    'fields': 'campaign_name, adset_name, ad_name, ad_id, spend, impressions, inline_link_clicks',
+    'fields': 'campaign_name, spend, impressions, inline_link_clicks',
     'action_report_time': 'impression',
-    'action_attribution_windows': '1d_click'
+    'action_attribution_windows': '1d_click',
+    'time_increment': 1
 }
 
 response = re.get("https://graph.facebook.com/v20.0/act_1385837205024797/insights", headers=headers, params=params)
@@ -48,9 +49,15 @@ else:
 
 # Concatenate all data into a single DataFrame
 master_df = pd.concat(data_frames, ignore_index=True)
+master_df = master_df.fillna(0)
+# Rename and drop columns in one line
+master_df = master_df.rename(columns={"inline_link_clicks": "clicks", "date_start": "date"}).drop(columns=["date_stop"])
 
 # Show title and description.
-st.title("OpenAI Data Analysis Assistant")
+st.title("👀 Finder Marketing Assistant (work-in-progress)")
+st.write("This tool is designed to help marketers at Finder Australia analyze and understand their Facebook creative performance data. By leveraging OpenAI's capabilities, marketers can ask specific questions about their ad campaigns and receive insights based on key metrics like spend, impressions, and clicks. The tool simplifies data exploration, enabling quick decision-making and strategy optimization for campaigns.")
+st.write("Terms & Conditions:")
+st.write("This tool processes only the last 7 days of Facebook creative data. For comprehensive analysis or historical trends beyond this period, additional data integration may be required. Insights are based on the accuracy and availability of data provided through the Facebook API.")
 st.write("Ask a question about your dataset:")
 
 # Set up OpenAI API key
@@ -81,15 +88,26 @@ def ask_openai_with_data(question, df):
     chat_completion = client.chat.completions.create(
         messages=[
             {
+                "role": "developer",
+                "content": [{
+                    "type": "text",
+                    "text":
+                        "You are a data analysis tool specialising in analysing marketing data. Don't recommend data analysis software and provide short concise answers on exactly what is being asked."
+                }],
+            },
+            {
                 "role": "user",
-                "content": prompt,
+                "content": [{
+                    "type": "text",
+                    "text": prompt,
+                    }]
             }
         ],
         model="gpt-4o",
     )
 
     # Extract and return the AI's response
-    return chat_completion.choices[0].message
+    return chat_completion.choices[0].message.content
 
 # Create a form for user input
 with st.form(key="query_form"):
